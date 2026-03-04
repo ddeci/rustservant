@@ -10,3 +10,9 @@ servers.json
 PLAN.md
 SETUP_SENSITIVE.md
 phase1.md
+
+# Nix
+result
+result-*
+.direnv/
+.envrc

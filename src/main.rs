@@ -7,22 +7,25 @@ mod discord;
 mod helpers;
 mod items;
 
-use tokio_tungstenite::connect_async;
-use tokio_tungstenite::tungstenite::Message;
-use futures_util::{StreamExt, SinkExt};
-use serde::{Deserialize, Serialize};
+use futures_util::{SinkExt, StreamExt};
 use prost::Message as ProstMessage;
+use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::Path;
 use std::sync::Arc;
 use tokio::sync::RwLock;
+use tokio_tungstenite::connect_async;
+use tokio_tungstenite::tungstenite::Message;
 
-use rustplus::{AppRequest, AppMessage, AppEmpty, AppSendMessage, AppTime, AppInfo, AppMapMarkers, AppMarkerType, AppMap};
+use rustplus::{
+    AppEmpty, AppInfo, AppMap, AppMapMarkers, AppMarkerType, AppMessage, AppRequest,
+    AppSendMessage, AppTime,
+};
 
 enum ReconnectAction {
-    SwitchServer,  // User requested server switch
-    Retry,         // Connection lost, should retry
-    Stop,          // Fatal error, stop completely
+    SwitchServer, // User requested server switch
+    Retry,        // Connection lost, should retry
+    Stop,         // Fatal error, stop completely
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -36,12 +39,14 @@ struct ServerConfig {
 
 impl ServerConfig {
     fn get_player_token_i32(&self) -> Result<i32, Box<dyn std::error::Error>> {
-        self.player_token.parse::<i32>()
+        self.player_token
+            .parse::<i32>()
             .map_err(|e| format!("Failed to parse player_token: {}", e).into())
     }
 
     fn get_player_id_u64(&self) -> Result<u64, Box<dyn std::error::Error>> {
-        self.player_id.parse::<u64>()
+        self.player_id
+            .parse::<u64>()
             .map_err(|e| format!("Failed to parse player_id: {}", e).into())
     }
 }
@@ -76,7 +81,13 @@ impl ServersConfig {
         self.servers
             .get(&self.active_server)
             .cloned()
-            .ok_or_else(|| format!("Active server '{}' not found in configuration", self.active_server).into())
+            .ok_or_else(|| {
+                format!(
+                    "Active server '{}' not found in configuration",
+                    self.active_server
+                )
+                .into()
+            })
     }
 
     fn switch_server(&mut self, server_id: &str) -> Result<(), Box<dyn std::error::Error>> {
@@ -88,10 +99,11 @@ impl ServersConfig {
         Ok(())
     }
 
-
     fn remove_server(&mut self, server_id: &str) -> Result<(), Box<dyn std::error::Error>> {
         if server_id == self.active_server {
-            return Err("Cannot remove the currently active server. Switch to another server first.".into());
+            return Err(
+                "Cannot remove the currently active server. Switch to another server first.".into(),
+            );
         }
 
         if !self.servers.contains_key(server_id) {
@@ -123,7 +135,10 @@ impl DiscordConfig {
         let config_path = "discord_config.json";
 
         if !Path::new(config_path).exists() {
-            return Err("discord_config.json not found. Please create it with your bot token and guild ID.".into());
+            return Err(
+                "discord_config.json not found. Please create it with your bot token and guild ID."
+                    .into(),
+            );
         }
 
         let config_data = fs::read_to_string(config_path)?;
@@ -138,6 +153,7 @@ impl DiscordConfig {
 }
 
 #[derive(Debug, Clone)]
+#[derive(Default)]
 struct ServerState {
     time: Option<AppTime>,
     info: Option<AppInfo>,
@@ -145,16 +161,6 @@ struct ServerState {
     map: Option<AppMap>,
 }
 
-impl Default for ServerState {
-    fn default() -> Self {
-        Self {
-            time: None,
-            info: None,
-            markers: None,
-            map: None,
-        }
-    }
-}
 
 impl ServerState {
     fn calculate_time_until_night(&self) -> Option<String> {
@@ -192,7 +198,10 @@ impl ServerState {
         let minutes = real_minutes_until.floor() as u32;
         let seconds = ((real_minutes_until - minutes as f32) * 60.0) as u32;
 
-        Some(format!("{} minutes and {} seconds until night", minutes, seconds))
+        Some(format!(
+            "{} minutes and {} seconds until night",
+            minutes, seconds
+        ))
     }
 
     fn calculate_time_until_day(&self) -> Option<String> {
@@ -230,7 +239,10 @@ impl ServerState {
         let minutes = real_minutes_until.floor() as u32;
         let seconds = ((real_minutes_until - minutes as f32) * 60.0) as u32;
 
-        Some(format!("{} minutes and {} seconds until day", minutes, seconds))
+        Some(format!(
+            "{} minutes and {} seconds until day",
+            minutes, seconds
+        ))
     }
 
     fn get_current_time_info(&self) -> Option<String> {
@@ -273,18 +285,18 @@ impl ServerState {
         // Format: "14:23 (Day) - Night in 42m 34s" = ~30 chars
         Some(format!(
             "{:02}:{:02} ({}) - {} in {}m {}s",
-            hours, minutes,
+            hours,
+            minutes,
             if is_daytime { "Day" } else { "Night" },
-            next_cycle, mins, secs
+            next_cycle,
+            mins,
+            secs
         ))
     }
 
     fn get_server_info(&self) -> Option<String> {
         let info = self.info.as_ref()?;
-        Some(format!(
-            "{}",
-            info.name
-        ))
+        Some(info.name.to_string())
     }
 
     fn get_population_info(&self) -> Option<String> {
@@ -298,9 +310,7 @@ impl ServerState {
 
         Some(format!(
             "Players: {}/{}{}",
-            info.players,
-            info.max_players,
-            queue_info
+            info.players, info.max_players, queue_info
         ))
     }
 }
@@ -322,7 +332,13 @@ async fn main() {
     };
 
     let mut discord_command_rx = if let Some(discord_cfg) = discord_config {
-        match discord::start_bot(discord_cfg.bot_token, discord_cfg.application_id, discord_cfg.guild_id).await {
+        match discord::start_bot(
+            discord_cfg.bot_token,
+            discord_cfg.application_id,
+            discord_cfg.guild_id,
+        )
+        .await
+        {
             Ok((mut client, command_rx)) => {
                 tokio::spawn(async move {
                     if let Err(e) = client.start().await {
@@ -357,9 +373,17 @@ async fn main() {
         let config = match servers_config.get_active_server() {
             Ok(cfg) => {
                 if reconnect_attempts == 0 {
-                    println!("Connecting to: {} ({}:{})\n", cfg.name, cfg.server_ip, cfg.server_port);
+                    println!(
+                        "Connecting to: {} ({}:{})\n",
+                        cfg.name, cfg.server_ip, cfg.server_port
+                    );
                 } else {
-                    println!("Reconnecting to: {} (attempt {}/{})\n", cfg.name, reconnect_attempts + 1, max_reconnect_attempts);
+                    println!(
+                        "Reconnecting to: {} (attempt {}/{})\n",
+                        cfg.name,
+                        reconnect_attempts + 1,
+                        max_reconnect_attempts
+                    );
                 }
                 cfg
             }
@@ -385,12 +409,8 @@ async fn main() {
             }
         };
 
-        let reconnect_result = run_rustplus_connection(
-            config,
-            player_id,
-            player_token,
-            &mut discord_command_rx,
-        ).await;
+        let reconnect_result =
+            run_rustplus_connection(config, player_id, player_token, &mut discord_command_rx).await;
 
         match reconnect_result {
             ReconnectAction::SwitchServer => {
@@ -401,7 +421,10 @@ async fn main() {
             ReconnectAction::Retry => {
                 reconnect_attempts += 1;
                 if reconnect_attempts >= max_reconnect_attempts {
-                    eprintln!("\nMax reconnection attempts ({}) reached. Giving up.", max_reconnect_attempts);
+                    eprintln!(
+                        "\nMax reconnection attempts ({}) reached. Giving up.",
+                        max_reconnect_attempts
+                    );
                     eprintln!("Check your connection or use /pair to re-authenticate\n");
                     break;
                 }
@@ -426,11 +449,14 @@ async fn run_rustplus_connection(
     player_token: i32,
     discord_command_rx: &mut Option<tokio::sync::mpsc::UnboundedReceiver<discord::DiscordCommand>>,
 ) -> ReconnectAction {
-
     let url = format!("ws://{}:{}/", config.server_ip, config.server_port);
+    println!("Attempting WebSocket connection to: {}", url);
 
-    match connect_async(&url).await {
-        Ok((ws_stream, _)) => {
+    let connect_future = connect_async(&url);
+    let timeout_duration = tokio::time::Duration::from_secs(10);
+
+    match tokio::time::timeout(timeout_duration, connect_future).await {
+        Ok(Ok((ws_stream, _))) => {
             println!("Connected to Rust+ API\n");
 
             let (write, read) = ws_stream.split();
@@ -524,7 +550,8 @@ async fn run_rustplus_connection(
 
             let mut read = read;
             let mut seq_counter = 100u32;
-            let last_markers_request_seq: Arc<RwLock<Option<(u32, bool, bool)>>> = Arc::new(RwLock::new(None)); // (seq, is_show_events, is_debug)
+            let last_markers_request_seq: Arc<RwLock<Option<(u32, bool, bool)>>> =
+                Arc::new(RwLock::new(None)); // (seq, is_show_events, is_debug)
 
             loop {
                 tokio::select! {
@@ -711,7 +738,7 @@ async fn run_rustplus_connection(
                                             };
 
                                             // For debug commands, only print to terminal
-                                            if is_debug || (!is_show_events && !is_debug) {
+                                            if is_debug || !is_show_events {
                                                 // !debugmarkers or !getmarkers - terminal only
                                                 println!("[Debug Output]\n{}", result);
                                             } else {
@@ -761,9 +788,9 @@ async fn run_rustplus_connection(
                                     }
                                 }
 
-                                if let Some(broadcast) = app_msg.broadcast {
-                                    if let Some(new_team_msg) = broadcast.team_message {
-                                        if let Some(team_message) = new_team_msg.message {
+                                if let Some(broadcast) = app_msg.broadcast
+                                    && let Some(new_team_msg) = broadcast.team_message
+                                        && let Some(team_message) = new_team_msg.message {
                                             let name = &team_message.name;
                                             let message_text = &team_message.message;
 
@@ -817,9 +844,9 @@ async fn run_rustplus_connection(
                                                                 map.monuments.len(),
                                                                 map.width,
                                                                 map.height,
-                                                                map.monuments.get(0).map(|m| m.token.as_str()).unwrap_or("none"),
-                                                                map.monuments.get(0).map(|m| m.x).unwrap_or(0.0),
-                                                                map.monuments.get(0).map(|m| m.y).unwrap_or(0.0)
+                                                                map.monuments.first().map(|m| m.token.as_str()).unwrap_or("none"),
+                                                                map.monuments.first().map(|m| m.x).unwrap_or(0.0),
+                                                                map.monuments.first().map(|m| m.y).unwrap_or(0.0)
                                                             ))
                                                         } else {
                                                             Some("Map data not loaded yet".to_string())
@@ -898,8 +925,6 @@ async fn run_rustplus_connection(
                                                 }
                                             }
                                         }
-                                    }
-                                }
                             }
                             Err(e) => {
                                 eprintln!("Failed to decode: {}", e);
@@ -920,9 +945,14 @@ async fn run_rustplus_connection(
                 }
             }
         }
-        Err(e) => {
-            eprintln!("Connection failed: {}", e);
-            return ReconnectAction::Retry;
+        Ok(Err(e)) => {
+            eprintln!("WebSocket connection failed: {}", e);
+            ReconnectAction::Retry
+        }
+        Err(_) => {
+            eprintln!("Connection timed out after 10 seconds");
+            eprintln!("Make sure the Rust server has Rust+ enabled and app.port is correct");
+            ReconnectAction::Retry
         }
     }
 }

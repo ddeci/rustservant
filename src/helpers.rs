@@ -15,7 +15,11 @@ pub fn coords_to_grid(x: f32, y: f32, map_size: u32) -> String {
     } else {
         let first = col / 26 - 1;
         let second = col % 26;
-        format!("{}{}", (b'A' + first as u8) as char, (b'A' + second as u8) as char)
+        format!(
+            "{}{}",
+            (b'A' + first as u8) as char,
+            (b'A' + second as u8) as char
+        )
     };
 
     format!("{}{}", col_name, row)

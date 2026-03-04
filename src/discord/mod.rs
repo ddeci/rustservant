@@ -1,11 +1,11 @@
 use serenity::async_trait;
+use serenity::builder::{CreateInteractionResponse, CreateInteractionResponseMessage};
 use serenity::model::application::Interaction;
 use serenity::model::gateway::Ready;
 use serenity::model::id::GuildId;
 use serenity::prelude::*;
-use serenity::builder::{CreateInteractionResponse, CreateInteractionResponseMessage};
-use tokio::sync::mpsc;
 use std::path::Path;
+use tokio::sync::mpsc;
 
 use crate::ServersConfig;
 
@@ -33,9 +33,11 @@ impl EventHandler for Handler {
                     if let Ok(config) = ServersConfig::load() {
                         let servers = config.list_servers();
                         if servers.is_empty() {
-                            "No servers configured. Pair with a server using the pairing script.".to_string()
+                            "No servers configured. Pair with a server using the pairing script."
+                                .to_string()
                         } else {
-                            let mut msg = format!("**Configured Servers ({}):**\n\n", servers.len());
+                            let mut msg =
+                                format!("**Configured Servers ({}):**\n\n", servers.len());
                             for (id, server) in servers {
                                 let active = if id == config.active_server {
                                     " [ACTIVE]"
@@ -56,7 +58,10 @@ impl EventHandler for Handler {
                 "switch" => {
                     use serenity::model::application::CommandDataOptionValue;
 
-                    let server_id = command.data.options.first()
+                    let server_id = command
+                        .data
+                        .options
+                        .first()
                         .and_then(|opt| {
                             if let CommandDataOptionValue::String(s) = &opt.value {
                                 Some(s.as_str())
@@ -69,17 +74,20 @@ impl EventHandler for Handler {
                     if server_id.is_empty() {
                         "Please provide a server ID.".to_string()
                     } else {
-                        let _ = self.command_tx.send(DiscordCommand::SwitchServer(server_id.to_string()));
+                        let _ = self
+                            .command_tx
+                            .send(DiscordCommand::SwitchServer(server_id.to_string()));
 
                         match ServersConfig::load() {
-                            Ok(mut config) => {
-                                match config.switch_server(server_id) {
-                                    Ok(_) => {
-                                        format!("Switching to server: **{}**\n\nRustServant will reconnect...", server_id)
-                                    }
-                                    Err(e) => format!("Failed to switch: {}", e),
+                            Ok(mut config) => match config.switch_server(server_id) {
+                                Ok(_) => {
+                                    format!(
+                                        "Switching to server: **{}**\n\nRustServant will reconnect...",
+                                        server_id
+                                    )
                                 }
-                            }
+                                Err(e) => format!("Failed to switch: {}", e),
+                            },
                             Err(e) => format!("Failed to load configuration: {}", e),
                         }
                     }
@@ -88,28 +96,29 @@ impl EventHandler for Handler {
                     let _ = self.command_tx.send(DiscordCommand::GetActiveServer);
 
                     match ServersConfig::load() {
-                        Ok(config) => {
-                            match config.get_active_server() {
-                                Ok(server) => {
-                                    format!(
-                                        "**Currently Connected:**\n\n**{}** ({})\n{}:{}\n\nPlayer: {}",
-                                        config.active_server,
-                                        server.name,
-                                        server.server_ip,
-                                        server.server_port,
-                                        server.player_id
-                                    )
-                                }
-                                Err(e) => format!("Failed to get active server: {}", e),
+                        Ok(config) => match config.get_active_server() {
+                            Ok(server) => {
+                                format!(
+                                    "**Currently Connected:**\n\n**{}** ({})\n{}:{}\n\nPlayer: {}",
+                                    config.active_server,
+                                    server.name,
+                                    server.server_ip,
+                                    server.server_port,
+                                    server.player_id
+                                )
                             }
-                        }
+                            Err(e) => format!("Failed to get active server: {}", e),
+                        },
                         Err(e) => format!("Failed to load configuration: {}", e),
                     }
                 }
                 "remove" => {
                     use serenity::model::application::CommandDataOptionValue;
 
-                    let server_id = command.data.options.first()
+                    let server_id = command
+                        .data
+                        .options
+                        .first()
                         .and_then(|opt| {
                             if let CommandDataOptionValue::String(s) = &opt.value {
                                 Some(s.as_str())
@@ -122,17 +131,17 @@ impl EventHandler for Handler {
                     if server_id.is_empty() {
                         "Please provide a server ID.".to_string()
                     } else {
-                        let _ = self.command_tx.send(DiscordCommand::RemoveServer(server_id.to_string()));
+                        let _ = self
+                            .command_tx
+                            .send(DiscordCommand::RemoveServer(server_id.to_string()));
 
                         match ServersConfig::load() {
-                            Ok(mut config) => {
-                                match config.remove_server(server_id) {
-                                    Ok(_) => {
-                                        format!("Removed server: **{}**", server_id)
-                                    }
-                                    Err(e) => format!("Failed to remove: {}", e),
+                            Ok(mut config) => match config.remove_server(server_id) {
+                                Ok(_) => {
+                                    format!("Removed server: **{}**", server_id)
                                 }
-                            }
+                                Err(e) => format!("Failed to remove: {}", e),
+                            },
                             Err(e) => format!("Failed to load configuration: {}", e),
                         }
                     }
@@ -159,7 +168,8 @@ impl EventHandler for Handler {
                     • `/servers` - List all configured servers\n\
                     • `/current` - Show currently connected server\n\
                     • `/switch <server>` - Switch to different server\n\
-                    • `/remove <server>` - Remove server from config".to_string()
+                    • `/remove <server>` - Remove server from config"
+                        .to_string()
                 }
                 "pair" => {
                     let _ = self.command_tx.send(DiscordCommand::StartPairing);
@@ -179,14 +189,20 @@ impl EventHandler for Handler {
                     let token = command.token.clone();
 
                     tokio::spawn(async move {
-                        use tokio::process::Command;
                         use tokio::io::{AsyncBufReadExt, BufReader};
+                        use tokio::process::Command;
 
                         let script_path = "capture_pairing.js";
 
                         if !Path::new(script_path).exists() {
-                            let _ = http.create_followup_message(&token, &serenity::all::CreateInteractionResponseFollowup::new()
-                                .content("❌ Error: capture_pairing.js not found"), vec![]).await;
+                            let _ = http
+                                .create_followup_message(
+                                    &token,
+                                    &serenity::all::CreateInteractionResponseFollowup::new()
+                                        .content("❌ Error: capture_pairing.js not found"),
+                                    vec![],
+                                )
+                                .await;
                             return;
                         }
 
@@ -199,8 +215,14 @@ impl EventHandler for Handler {
                         {
                             Ok(c) => c,
                             Err(e) => {
-                                let _ = http.create_followup_message(&token, &serenity::all::CreateInteractionResponseFollowup::new()
-                                    .content(format!("❌ Failed to start pairing: {}", e)), vec![]).await;
+                                let _ = http
+                                    .create_followup_message(
+                                        &token,
+                                        &serenity::all::CreateInteractionResponseFollowup::new()
+                                            .content(format!("❌ Failed to start pairing: {}", e)),
+                                        vec![],
+                                    )
+                                    .await;
                                 return;
                             }
                         };
@@ -244,8 +266,14 @@ impl EventHandler for Handler {
                                 let error = line.replace("PAIRING_ERROR:", "");
                                 println!("[Pairing] Error: {}", error);
                                 let _ = child.kill().await;
-                                let _ = http.create_followup_message(&token, &serenity::all::CreateInteractionResponseFollowup::new()
-                                    .content(format!("❌ Pairing error: {}", error)), vec![]).await;
+                                let _ = http
+                                    .create_followup_message(
+                                        &token,
+                                        &serenity::all::CreateInteractionResponseFollowup::new()
+                                            .content(format!("❌ Pairing error: {}", error)),
+                                        vec![],
+                                    )
+                                    .await;
                                 return;
                             }
                         }
@@ -253,17 +281,38 @@ impl EventHandler for Handler {
                         let _ = child.wait().await;
 
                         if !server_name.is_empty() {
-                            let status_text = if is_new { "Added new server" } else { "Updated existing server" };
-                            println!("[Pairing] {} successfully: {} ({})", status_text, server_name, server_address);
+                            let status_text = if is_new {
+                                "Added new server"
+                            } else {
+                                "Updated existing server"
+                            };
+                            println!(
+                                "[Pairing] {} successfully: {} ({})",
+                                status_text, server_name, server_address
+                            );
 
-                            let message = format!("✅ {} **{}**\n\nServer ID: `{}`\nAddress: `{}`\n\n_Use `/switch {}` to connect to this server_",
-                                status_text, server_name, server_id, server_address, server_id);
-                            let _ = http.create_followup_message(&token, &serenity::all::CreateInteractionResponseFollowup::new()
-                                .content(message), vec![]).await;
+                            let message = format!(
+                                "✅ {} **{}**\n\nServer ID: `{}`\nAddress: `{}`\n\n_Use `/switch {}` to connect to this server_",
+                                status_text, server_name, server_id, server_address, server_id
+                            );
+                            let _ = http
+                                .create_followup_message(
+                                    &token,
+                                    &serenity::all::CreateInteractionResponseFollowup::new()
+                                        .content(message),
+                                    vec![],
+                                )
+                                .await;
                         } else {
                             println!("[Pairing] Failed - no server detected");
-                            let _ = http.create_followup_message(&token, &serenity::all::CreateInteractionResponseFollowup::new()
-                                .content("❌ Pairing failed. No server detected."), vec![]).await;
+                            let _ = http
+                                .create_followup_message(
+                                    &token,
+                                    &serenity::all::CreateInteractionResponseFollowup::new()
+                                        .content("❌ Pairing failed. No server detected."),
+                                    vec![],
+                                )
+                                .await;
                         }
                     });
 
@@ -273,8 +322,7 @@ impl EventHandler for Handler {
             };
 
             let data = CreateInteractionResponse::Message(
-                CreateInteractionResponseMessage::new()
-                    .content(response_content)
+                CreateInteractionResponseMessage::new().content(response_content),
             );
 
             if let Err(e) = command.create_response(&ctx.http, data).await {
@@ -305,8 +353,7 @@ pub async fn start_bot(
     let guild_id = GuildId::new(guild_id);
 
     let commands = vec![
-        serenity::builder::CreateCommand::new("help")
-            .description("Show all available commands"),
+        serenity::builder::CreateCommand::new("help").description("Show all available commands"),
         serenity::builder::CreateCommand::new("pair")
             .description("Pair with a new Rust server (listens for 60 seconds)"),
         serenity::builder::CreateCommand::new("servers")
@@ -319,9 +366,9 @@ pub async fn start_bot(
                 serenity::builder::CreateCommandOption::new(
                     serenity::model::application::CommandOptionType::String,
                     "server_id",
-                    "The server ID to switch to"
+                    "The server ID to switch to",
                 )
-                .required(true)
+                .required(true),
             ),
         serenity::builder::CreateCommand::new("remove")
             .description("Remove a Rust server from configuration")
@@ -329,9 +376,9 @@ pub async fn start_bot(
                 serenity::builder::CreateCommandOption::new(
                     serenity::model::application::CommandOptionType::String,
                     "server_id",
-                    "The server ID to remove"
+                    "The server ID to remove",
                 )
-                .required(true)
+                .required(true),
             ),
     ];
 
