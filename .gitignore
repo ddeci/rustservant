@@ -1,10 +1,12 @@
 /target
-node_modules/
-*.config.json
-discord_config.json
-server_config.json
-servers.json
-.pairing_history.json
+scripts/node_modules/
+
+# Config files (user-specific, not committed)
+config/*.config.json
+config/discord_config.json
+config/server_config.json
+config/servers.json
+config/.pairing_history.json
 
 # Nix
 result

@@ -17,8 +17,8 @@ const { spawn } = require('child_process');
 const fs = require('fs');
 const path = require('path');
 
-const CONFIG_FILE = path.join(__dirname, 'servers.json');
-const HISTORY_FILE = path.join(__dirname, '.pairing_history.json');
+const CONFIG_FILE = path.join(__dirname, '..', 'config', 'servers.json');
+const HISTORY_FILE = path.join(__dirname, '..', 'config', '.pairing_history.json');
 
 // Parse command line arguments
 const args = process.argv.slice(2);

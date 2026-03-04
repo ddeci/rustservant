@@ -59,7 +59,7 @@ struct ServersConfig {
 
 impl ServersConfig {
     fn load() -> Result<Self, Box<dyn std::error::Error>> {
-        let config_path = "servers.json";
+        let config_path = "config/servers.json";
 
         if !Path::new(config_path).exists() {
             return Err("No servers configured yet".into());
@@ -73,7 +73,7 @@ impl ServersConfig {
 
     fn save(&self) -> Result<(), Box<dyn std::error::Error>> {
         let config_data = serde_json::to_string_pretty(self)?;
-        fs::write("servers.json", config_data)?;
+        fs::write("config/servers.json", config_data)?;
         Ok(())
     }
 
@@ -132,11 +132,11 @@ struct DiscordConfig {
 
 impl DiscordConfig {
     fn load() -> Result<Self, Box<dyn std::error::Error>> {
-        let config_path = "discord_config.json";
+        let config_path = "config/discord_config.json";
 
         if !Path::new(config_path).exists() {
             return Err(
-                "discord_config.json not found. Please create it with your bot token and guild ID."
+                "config/discord_config.json not found. Please create it with your bot token and guild ID."
                     .into(),
             );
         }
@@ -145,7 +145,7 @@ impl DiscordConfig {
         let config: DiscordConfig = serde_json::from_str(&config_data)?;
 
         if config.bot_token == "YOUR_DISCORD_BOT_TOKEN_HERE" {
-            return Err("Please set your Discord bot token in discord_config.json".into());
+            return Err("Please set your Discord bot token in config/discord_config.json".into());
         }
 
         Ok(config)

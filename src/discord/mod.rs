@@ -192,14 +192,14 @@ impl EventHandler for Handler {
                         use tokio::io::{AsyncBufReadExt, BufReader};
                         use tokio::process::Command;
 
-                        let script_path = "capture_pairing.js";
+                        let script_path = "scripts/capture_pairing.js";
 
                         if !Path::new(script_path).exists() {
                             let _ = http
                                 .create_followup_message(
                                     &token,
                                     &serenity::all::CreateInteractionResponseFollowup::new()
-                                        .content("❌ Error: capture_pairing.js not found"),
+                                        .content("❌ Error: scripts/capture_pairing.js not found"),
                                     vec![],
                                 )
                                 .await;
