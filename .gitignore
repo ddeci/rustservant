@@ -6,11 +6,6 @@ server_config.json
 servers.json
 .pairing_history.json
 
-# Markdown files (except README)
-PLAN.md
-SETUP_SENSITIVE.md
-phase1.md
-
 # Nix
 result
 result-*
