@@ -152,15 +152,13 @@ impl DiscordConfig {
     }
 }
 
-#[derive(Debug, Clone)]
-#[derive(Default)]
+#[derive(Debug, Clone, Default)]
 struct ServerState {
     time: Option<AppTime>,
     info: Option<AppInfo>,
     markers: Option<AppMapMarkers>,
     map: Option<AppMap>,
 }
-
 
 impl ServerState {
     fn calculate_time_until_night(&self) -> Option<String> {
